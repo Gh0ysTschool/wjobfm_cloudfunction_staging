@@ -1,0 +1,51 @@
+client
+  form to add email to mailing list
+    frequency (week / month)
+    demographic info
+management client
+  form to add content to weekly / monthly email
+email
+  verification link to firebase's verify cloud function
+  link to unsubscribe
+firebase
+  schema
+    users
+      email
+      demographic info
+      frequency
+  security rules
+    only allow cloud functions to alter the database
+  cloud functions
+    verify
+       ensure that the user isnt already verified
+    create unverified account
+       ensure the request isnt being spammed from the same ip address
+    unsubscribe
+      ensure the user hasnt already been removed
+    mail out weekly / monthly news letter
+    -- or -- set up an emmail address, and any emails read from that address from a specific subset of know safe addresses (admins) will be forwardsed to newletter folk
+       -- in which case
+	  authorize email as safe-to-forward 
+          -- or -- set up another trusted email account, and have that be the sole access point
+          daily check for new emails from an associated gmail account
+
+
+
+
+-verify function
+  takes a doc id, finds that doc, copies it to verified collection
+-unverified function
+  takes demographic info, develops hash of it, uses it as doc id, stores in unverified
+-mail function
+  forward email to all members
+  read inbox for new emails from whitelist and forward them to newletteer folk
+-unsubscribe
+  remove from verified collection
+-website
+  page to verify, that'll take a hash as a query param and run the cloud function necessary
+  page to sign up for news letter, that will take a filled form and send it to the unverified cloud function
+  eventually - admin page / site
+  page to unsubscribe, that will take a docID and send it to the unsubscribe cloud function
+
+-cronjob
+  mail function
