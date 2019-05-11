@@ -50,13 +50,13 @@ exports.verify = functions.https.onRequest((req:any, res:any) => {
                 let data = {} as any;
                 data[docID] = snapshot.data().email;
                 db.collection('verified-emails').doc('compiledEmails').get().then((compiledEmails:any)=>{
-                    db.collection('verified-emails').doc('compiledEmails').set({...data, ...compiledEmails.data});
+                    db.collection('verified-emails').doc('compiledEmails').set({...data, ...compiledEmails.data()});
                 });
                 //then remove the original copy from the unverified emails collection
                 doc.delete();
             }
             //return a successful execution status to the client that called this cloud function's url
-            res.status(200)
+            res.status(200).send('Your email has been verified ^__^')
                 //then terminate the connection
                 .end();
         });
@@ -84,7 +84,7 @@ exports.formCompatibleMailAll = functions.https.onRequest((req:any, res:any) => 
                     from: "wjobnotifs@gmail.com",
                     to: snapshot.data()[key],
                     subject: "WJOB Newsletter",
-                    html:req.query.text+"<br><a href='"+wjob_url+'/unsub'+'?hash='+key+"'>Didn't Mean to Sign Up?</a>" 
+                    html:req.query.text+"<br><a href='https://us-central1-wjob-staging.cloudfunctions.net/unsub"+'?hash='+key+"'>Didn't Mean to Sign Up?</a>" 
                 };
                 //send a verification email to the provided email address
                 transporter.sendMail(mailOptions, function (error:any, response:any) {
@@ -114,9 +114,9 @@ exports.createUnverified = functions.https.onRequest((req:any, res:any) => {
         //generate a unique hash from the demographic information
         let hash = _crypto.createHash('md5').update(email+name+age).digest("hex");
         //create a unique link to verify the email address using the above hash
-        let link = wjob_url+'/verify?hash='+hash;
+        let link = "https://us-central1-wjob-staging.cloudfunctions.net"+'/verify?hash='+hash;
         //create a unique link to unsubscribe the email address using the above hash
-        let unsublink = wjob_url+'/unsub?hash='+hash;
+        let unsublink = "https://us-central1-wjob-staging.cloudfunctions.net"+'/unsub?hash='+hash;
         //create a document in the unverified-emails collection 
         admin.firestore().collection('unverified-emails')
             //use the generated hash to label the document
@@ -161,18 +161,38 @@ exports.createUnverified = functions.https.onRequest((req:any, res:any) => {
 
 //UNSUBSCRIBE
 /*****************************************************************/
-// exports.unsubscribe = functions.https.onRequest((req:any, res:any) => {
-//     return Promise.resolve().then(()=>{
-
-//         res.redirect(200); 
-//     })
-// })
-// exports.sendOutEmails = functions.https.onRequest((req:any, res:any) => {
-//     return Promise.resolve().then(()=>{
-
-//         res.redirect(200);
-//     })
-// })
+exports.unsub = functions.https.onRequest((req:any, res:any) => {
+    return Promise.resolve().then(()=>{
+        //retrieve docID from query param named hash
+        let docID = req.query.hash;
+        //retrieve reference to the database
+        let db = admin.firestore();
+        //access doc with that id from verified collection
+        let doc = db.collection('verified-emails').doc(docID);
+        //waits for database to respond with a snapshot of the doc
+        doc.get().then((snapshot:any) => {
+            //if the doc exists
+            if (snapshot.exists) {
+                // rempve that copy of the doc from the verified emails collection
+                db.collection('verified-emails').doc(docID).delete();
+                //filter out the duplicate of the data to a doc that compiles all emails
+                db.collection('verified-emails').doc('compiledEmails').get().then((compiledEmails:any)=>{
+                    let data = {} as any;
+                    for (let key in snapshot.data()){
+                        if (key != docID){
+                            data[key]=snapshot.data()[key];
+                        }
+                    }
+                    db.collection('verified-emails').doc('compiledEmails').set(data);
+                });
+            }
+            //return a successful execution status to the client that called this cloud function's url
+            res.status(200).send("You've successfully unsubscribed from the WJOB FM newsletter.")
+                //then terminate the connection
+                .end();
+        });
+    })
+})
 /*****************************************************************/
 //exports.cronJobCheckMail = functions.https.onRequest((req:any, res:any) => 
 //    return Promise.resolve().then(()=>{
@@ -185,3 +205,4 @@ exports.createUnverified = functions.https.onRequest((req:any, res:any) => {
         //  , emailing an admin a link to reauth this application
 //    });
 //});
+/*****************************************************************/
